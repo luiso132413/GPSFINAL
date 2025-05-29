@@ -4,6 +4,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.*;
+import java.util.List;
 import javax.swing.border.EmptyBorder;
 
 public class GPSPanel extends JFrame {
@@ -26,9 +27,15 @@ public class GPSPanel extends JFrame {
         JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JButton conectarBtn = new JButton("Conectar Ciudades");
         JButton modoArrastreBtn = new JButton("Modo Arrastre");
+        JButton dijkstraBtn = new JButton("Dijkstra");
+        JButton guardarBtn = new JButton("Guardar");
+        JButton cargarBtn = new JButton("Cargar");
 
+        controlPanel.add(dijkstraBtn);
         controlPanel.add(conectarBtn);
         controlPanel.add(modoArrastreBtn);
+        controlPanel.add(guardarBtn);
+        controlPanel.add(cargarBtn);
 
         add(controlPanel, BorderLayout.NORTH);
 
@@ -92,7 +99,106 @@ public class GPSPanel extends JFrame {
         conectarBtn.addActionListener(e -> iniciarModoConexion());
         modoArrastreBtn.addActionListener(e -> toggleModoArrastre());
 
+        guardarBtn.addActionListener(e -> {
+            if (grafo.getCiudades().isEmpty()) {
+                JOptionPane.showMessageDialog(this, "No hay datos para guardar", "Advertencia", JOptionPane.WARNING_MESSAGE);
+            } else {
+                Archivo.guardarDatos(grafo);
+            }
+        });
+
+        cargarBtn.addActionListener(e -> {
+            Grafo grafoCargado = Archivo.cargarDatos();
+            if (grafoCargado != null) {
+                this.grafo = grafoCargado;
+                this.nextId = calcularNextId();
+                ciudadSeleccionada = null;
+                ciudadOrigenConexion = null;
+                mapPanel.repaint();
+                infoArea.append("Datos cargados correctamente\n");
+            }
+        });
+
+        dijkstraBtn.addActionListener(e -> {
+            if (grafo.getCiudades().size() < 2) {
+                JOptionPane.showMessageDialog(GPSPanel.this, "Debe haber al menos 2 ciudades.");
+                return;
+            }
+
+            Ciudad origen = seleccionarCiudad("Selecciona la ciudad **origen**:");
+            if (origen == null) return;
+
+            Ciudad destino = seleccionarCiudad("Selecciona la ciudad **destino**:");
+            if (destino == null || destino == origen) {
+                JOptionPane.showMessageDialog(GPSPanel.this, "Destino inválido.");
+                return;
+            }
+
+            String horaStr = JOptionPane.showInputDialog(GPSPanel.this, "Hora actual (0–23):");
+            String minutoStr = JOptionPane.showInputDialog(GPSPanel.this, "Minuto actual (0–59):");
+            try {
+                int hora = Integer.parseInt(horaStr);
+                int minuto = Integer.parseInt(minutoStr);
+                double velocidad = Funciones.velocidadPorHora(hora, minuto);
+                List<Ciudad> ruta = grafo.rutaMasRapida(origen, destino, velocidad);
+                mostrarRuta(ruta, velocidad);
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(GPSPanel.this, "Entrada inválida.");
+            }
+        });
+
         setVisible(true);
+    }
+
+    private int calcularNextId() {
+        return grafo.getCiudades().stream()
+                .mapToInt(Ciudad::getId)
+                .max()
+                .orElse(0) + 1;
+    }
+
+    private void mostrarRuta(List<Ciudad> ruta, double tiempoTotal) {
+        if (ruta == null || ruta.isEmpty()) {
+            infoArea.setText("No se encontró ruta.");
+            return;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("Ruta más rápida:\n");
+        for (Ciudad ciudad : ruta) {
+            sb.append(ciudad.getNombre()).append(" -> ");
+        }
+        sb.setLength(sb.length() - 4);
+        sb.append("\nTiempo estimado: ").append(String.format("%.2f", tiempoTotal)).append(" minutos");
+
+        infoArea.setText(sb.toString());
+
+        Graphics g = mapPanel.getGraphics();
+        g.setColor(Color.RED);
+        for (int i = 0; i < ruta.size() - 1; i++) {
+            Ciudad c1 = ruta.get(i);
+            Ciudad c2 = ruta.get(i + 1);
+            int x1 = (int) ((c1.getLongitud() + 180) * mapPanel.getWidth() / 360);
+            int y1 = (int) ((90 - c1.getLatitud()) * mapPanel.getHeight() / 180);
+            int x2 = (int) ((c2.getLongitud() + 180) * mapPanel.getWidth() / 360);
+            int y2 = (int) ((90 - c2.getLatitud()) * mapPanel.getHeight() / 180);
+            g.drawLine(x1, y1, x2, y2);
+        }
+    }
+
+    // Resto de los métodos permanecen igual...
+    private Ciudad seleccionarCiudad(String mensaje) {
+        List<Ciudad> ciudades = grafo.getCiudades();
+        String[] opciones = ciudades.stream().map(Ciudad::getNombre).toArray(String[]::new);
+        String seleccion = (String) JOptionPane.showInputDialog(this, mensaje, "Seleccionar Ciudad",
+                JOptionPane.PLAIN_MESSAGE, null, opciones, opciones[0]);
+
+        for (Ciudad ciudad : ciudades) {
+            if (ciudad.getNombre().equals(seleccion)) {
+                return ciudad;
+            }
+        }
+        return null;
     }
 
     private void dibujarCiudades(Graphics g) {
@@ -103,11 +209,9 @@ public class GPSPanel extends JFrame {
             int x = convertirLongitudAX(ciudad.getLongitud());
             int y = convertirLatitudAY(ciudad.getLatitud());
 
-            // Dibujar sombra
             g2d.setColor(new Color(100, 100, 100, 50));
             g2d.fillOval(x - 9, y - 6, 20, 20);
 
-            // Dibujar círculo de la ciudad
             if (ciudad == ciudadSeleccionada) {
                 g2d.setColor(new Color(255, 100, 100));
             } else if (ciudad == ciudadArrastrando) {
@@ -117,11 +221,9 @@ public class GPSPanel extends JFrame {
             }
             g2d.fillOval(x - 10, y - 10, 20, 20);
 
-            // Dibujar borde
             g2d.setColor(Color.BLACK);
             g2d.drawOval(x - 10, y - 10, 20, 20);
 
-            // Dibujar nombre e ID
             g2d.setFont(new Font("Arial", Font.BOLD, 12));
             g2d.drawString(ciudad.getNombre(), x + 15, y + 5);
             g2d.setFont(new Font("Arial", Font.PLAIN, 10));
@@ -203,7 +305,6 @@ public class GPSPanel extends JFrame {
         JPanel panel = new JPanel(new GridLayout(4, 2, 5, 5));
         panel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
-        // Conversión de coordenadas del panel a lat/lon (aproximación visual)
         double latitud = 90 - (y * 180.0 / mapPanel.getHeight());
         double longitud = (x * 360.0 / mapPanel.getWidth()) - 180;
 
@@ -241,14 +342,13 @@ public class GPSPanel extends JFrame {
         }
     }
 
-
     private void manejarClicCiudad(int x, int y) {
         Ciudad ciudadClicada = null;
         for (Ciudad ciudad : grafo.getCiudades()) {
             int cx = convertirLongitudAX(ciudad.getLongitud());
             int cy = convertirLatitudAY(ciudad.getLatitud());
 
-            if (Math.sqrt(Math.pow(x - cx, 2) + Math    .pow(y - cy, 2)) <= 15) {
+            if (Math.sqrt(Math.pow(x - cx, 2) + Math.pow(y - cy, 2)) <= 15) {
                 ciudadClicada = ciudad;
                 break;
             }

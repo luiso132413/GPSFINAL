@@ -1,6 +1,8 @@
 package simuladorgps;
+import java.io.Serializable;
 
-public class Ciudad {//nodo
+public class Ciudad implements Serializable {
+    private static final long serialVersionUID = 1L;
     private int id;
     private String nombre;
     private double latitud;
@@ -43,5 +45,12 @@ public class Ciudad {//nodo
 
     public double getLongitud() {
         return longitud;
+    }
+
+    // En tu clase Ciudad
+    @Override
+    public String toString() {
+        return String.format("%s (ID: %d, Lat: %.6f, Long: %.6f)",
+                nombre, id, latitud, longitud);
     }
 }
