@@ -24,17 +24,9 @@ public class GPSPanel extends JFrame {
 
         // Panel superior con botones
         JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JButton listarCiudadesBtn = new JButton("Listar Ciudades");
-        JButton listarRutasBtn = new JButton("Listar Rutas");
-        JButton rutaOptimaBtn = new JButton("Ruta Óptima");
-        JButton simularViajeBtn = new JButton("Simular Viaje");
         JButton conectarBtn = new JButton("Conectar Ciudades");
         JButton modoArrastreBtn = new JButton("Modo Arrastre");
 
-        controlPanel.add(listarCiudadesBtn);
-        controlPanel.add(listarRutasBtn);
-        controlPanel.add(rutaOptimaBtn);
-        controlPanel.add(simularViajeBtn);
         controlPanel.add(conectarBtn);
         controlPanel.add(modoArrastreBtn);
 
@@ -97,10 +89,6 @@ public class GPSPanel extends JFrame {
         add(new JScrollPane(infoArea), BorderLayout.SOUTH);
 
         // Configurar acciones de los botones
-        listarCiudadesBtn.addActionListener(e -> listarCiudades());
-        listarRutasBtn.addActionListener(e -> listarRutas());
-        rutaOptimaBtn.addActionListener(e -> calcularRutaOptima());
-        simularViajeBtn.addActionListener(e -> simularViaje());
         conectarBtn.addActionListener(e -> iniciarModoConexion());
         modoArrastreBtn.addActionListener(e -> toggleModoArrastre());
 
@@ -212,8 +200,10 @@ public class GPSPanel extends JFrame {
     }
 
     private void mostrarDialogoNuevaCiudad(int x, int y) {
-        JPanel panel = new JPanel(new GridLayout(4, 2));
+        JPanel panel = new JPanel(new GridLayout(4, 2, 5, 5));
+        panel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
+        // Conversión de coordenadas del panel a lat/lon (aproximación visual)
         double latitud = 90 - (y * 180.0 / mapPanel.getHeight());
         double longitud = (x * 360.0 / mapPanel.getWidth()) - 180;
 
@@ -233,19 +223,24 @@ public class GPSPanel extends JFrame {
 
         if (result == JOptionPane.OK_OPTION) {
             try {
-                String nombre = nombreField.getText();
-                double lat = Double.parseDouble(latitudField.getText());
-                double lon = Double.parseDouble(longitudField.getText());
+                String nombre = nombreField.getText().trim();
+                if (nombre.isEmpty()) {
+                    JOptionPane.showMessageDialog(this, "El nombre no puede estar vacío.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                double lat = Double.parseDouble(latitudField.getText().trim());
+                double lon = Double.parseDouble(longitudField.getText().trim());
 
                 Ciudad nuevaCiudad = new Ciudad(nextId++, nombre, lat, lon);
                 grafo.agregarCiudad(nuevaCiudad);
                 mapPanel.repaint();
-                infoArea.append("Ciudad agregada: " + nombre + " (ID: " + nuevaCiudad.getId() + ")\n");
-            } catch (NumberFormatException e) {
-                JOptionPane.showMessageDialog(this, "Formato de coordenadas inválido", "Error", JOptionPane.ERROR_MESSAGE);
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this, "Latitud y longitud deben ser valores numéricos válidos.", "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
+
 
     private void manejarClicCiudad(int x, int y) {
         Ciudad ciudadClicada = null;
@@ -253,7 +248,7 @@ public class GPSPanel extends JFrame {
             int cx = convertirLongitudAX(ciudad.getLongitud());
             int cy = convertirLatitudAY(ciudad.getLatitud());
 
-            if (Math.sqrt(Math.pow(x - cx, 2) + Math.pow(y - cy, 2)) <= 15) {
+            if (Math.sqrt(Math.pow(x - cx, 2) + Math    .pow(y - cy, 2)) <= 15) {
                 ciudadClicada = ciudad;
                 break;
             }
@@ -289,86 +284,6 @@ public class GPSPanel extends JFrame {
         infoArea.append("Modo conexión: Seleccione ciudad destino para " +
                 ciudadOrigenConexion.getNombre() + "\n");
         mapPanel.repaint();
-    }
-
-    private void listarCiudades() {
-        StringBuilder sb = new StringBuilder("--- LISTADO DE CIUDADES ---\n");
-        for (Ciudad ciudad : grafo.getCiudades()) {
-            sb.append("ID: ").append(ciudad.getId())
-                    .append(" | Nombre: ").append(ciudad.getNombre())
-                    .append(" | Coordenadas: (").append(ciudad.getLatitud())
-                    .append(", ").append(ciudad.getLongitud()).append(")\n");
-        }
-        infoArea.setText(sb.toString());
-    }
-
-    private void listarRutas() {
-        StringBuilder sb = new StringBuilder("--- LISTADO DE RUTAS ---\n");
-        for (Ciudad origen : grafo.getCiudades()) {
-            for (Ruta ruta : grafo.getRutasDesde(origen)) {
-                sb.append(origen.getNombre()).append(" -> ")
-                        .append(ruta.getDestino().getNombre())
-                        .append(" | Distancia: ").append(ruta.getDistancia()).append(" km\n");
-            }
-        }
-        infoArea.setText(sb.toString());
-    }
-
-    private void calcularRutaOptima() {
-        if (grafo.getCiudades().size() < 2) {
-            infoArea.setText("Necesita al menos 2 ciudades para calcular una ruta");
-            return;
-        }
-
-        JPanel panel = new JPanel(new GridLayout(4, 2));
-
-        JComboBox<Ciudad> origenCombo = new JComboBox<>(grafo.getCiudades().toArray(new Ciudad[0]));
-        JComboBox<Ciudad> destinoCombo = new JComboBox<>(grafo.getCiudades().toArray(new Ciudad[0]));
-        JSpinner horaSpinner = new JSpinner(new SpinnerNumberModel(0, 0, 23, 1));
-        JSpinner minutoSpinner = new JSpinner(new SpinnerNumberModel(0, 0, 59, 1));
-
-        panel.add(new JLabel("Ciudad Origen:"));
-        panel.add(origenCombo);
-        panel.add(new JLabel("Ciudad Destino:"));
-        panel.add(destinoCombo);
-        panel.add(new JLabel("Hora de salida:"));
-        panel.add(horaSpinner);
-        panel.add(new JLabel("Minuto de salida:"));
-        panel.add(minutoSpinner);
-
-        int result = JOptionPane.showConfirmDialog(this, panel, "Calcular Ruta Óptima",
-                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-
-        if (result == JOptionPane.OK_OPTION) {
-            Ciudad origen = (Ciudad) origenCombo.getSelectedItem();
-            Ciudad destino = (Ciudad) destinoCombo.getSelectedItem();
-            int hora = (int) horaSpinner.getValue();
-            int minuto = (int) minutoSpinner.getValue();
-
-            infoArea.setText(grafo.dijkstra(origen, destino, hora, minuto));
-        }
-    }
-
-    private void simularViaje() {
-        JPanel panel = new JPanel(new GridLayout(2, 2));
-
-        JSpinner horaSpinner = new JSpinner(new SpinnerNumberModel(0, 0, 23, 1));
-        JSpinner minutoSpinner = new JSpinner(new SpinnerNumberModel(0, 0, 59, 1));
-
-        panel.add(new JLabel("Hora actual:"));
-        panel.add(horaSpinner);
-        panel.add(new JLabel("Minuto actual:"));
-        panel.add(minutoSpinner);
-
-        int result = JOptionPane.showConfirmDialog(this, panel, "Simular Viaje",
-                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-
-        if (result == JOptionPane.OK_OPTION) {
-            int hora = (int) horaSpinner.getValue();
-            int minuto = (int) minutoSpinner.getValue();
-
-            infoArea.setText("Simulación de viaje en progreso...\nHora actual: " + hora + ":" + minuto + "\n");
-        }
     }
 
     public static void main(String[] args) {

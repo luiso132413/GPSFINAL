@@ -6,15 +6,20 @@ import simuladorgps.Ruta;
 public class Funciones {
 
     public static double recorrido(double lat1, double lon1, double lat2, double lon2) {
-        final int RTierra = 6371;
+        final int RTierra = 6371; // Radio de la Tierra en km
         double dLat = Math.toRadians(lat2 - lat1);
         double dLon = Math.toRadians(lon2 - lon1);
+        double lat1Rad = Math.toRadians(lat1);
+        double lat2Rad = Math.toRadians(lat2);
+
         double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
-                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-                + Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                + Math.cos(lat1Rad) * Math.cos(lat2Rad)
+                * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return RTierra * c;
     }
+
 
     public static double velocidadPorHora(int hora, int minuto) {
         int totalMin = hora * 60 + minuto;
