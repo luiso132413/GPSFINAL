@@ -1,8 +1,5 @@
 package simuladorgps;
 
-import simuladorgps.Ciudad;
-import simuladorgps.Ruta;
-
 public class Funciones {
 
     public static double recorrido(double lat1, double lon1, double lat2, double lon2) {

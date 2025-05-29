@@ -31,6 +31,22 @@ public class Ruta implements Serializable {
         return tiempo;
     }
 
+    public void setOrigen(Ciudad origen) {
+        this.origen = origen;
+    }
+
+    public void setDestino(Ciudad destino) {
+        this.destino = destino;
+    }
+
+    public void setDistancia(double distancia) {
+        this.distancia = distancia;
+    }
+
+    public void setTiempo(double tiempo) {
+        this.tiempo = tiempo;
+    }
+
     // En tu clase Ruta
     @Override
     public String toString() {
