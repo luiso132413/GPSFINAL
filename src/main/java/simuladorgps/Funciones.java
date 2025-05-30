@@ -33,4 +33,7 @@ public class Funciones {
         double velocidad = velocidadPorHora(hora, minuto);
         return (distanciaKm / velocidad) * 60; // devuelve minutos
     }
+
+
+
 }

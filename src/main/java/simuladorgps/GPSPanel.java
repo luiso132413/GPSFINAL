@@ -29,7 +29,10 @@ public class GPSPanel extends JFrame {
         JButton modoArrastreBtn = new JButton("Modo Arrastre");
         JButton guardarBtn = new JButton("Guardar");
         JButton cargarBtn = new JButton("Cargar");
+        JButton calcularRutaBtn = new JButton("Calcular Ruta Óptima");
 
+
+        controlPanel.add(calcularRutaBtn);
         controlPanel.add(conectarBtn);
         controlPanel.add(modoArrastreBtn);
         controlPanel.add(guardarBtn);
@@ -130,8 +133,6 @@ public class GPSPanel extends JFrame {
             toggleModoArrastre();  // Agregar paréntesis y punto y coma
         });
 
-
-
         guardarBtn.addActionListener(e -> {
             if (grafo.getCiudades().isEmpty()) {
                 JOptionPane.showMessageDialog(this, "No hay datos para guardar", "Advertencia", JOptionPane.WARNING_MESSAGE);
@@ -149,6 +150,69 @@ public class GPSPanel extends JFrame {
                 ciudadOrigenConexion = null;
                 mapPanel.repaint();
                 infoArea.append("Datos cargados correctamente\n");
+            }
+        });
+
+        calcularRutaBtn.addActionListener(e -> {
+            if (ciudadSeleccionada == null) {
+                JOptionPane.showMessageDialog(this,
+                        "Seleccione una ciudad de origen primero",
+                        "Calcular Ruta",
+                        JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            // Mostrar diálogo para seleccionar ciudad destino
+            List<Ciudad> ciudades = grafo.getCiudades();
+            ciudades.remove(ciudadSeleccionada); // Quitamos la ciudad origen
+
+            Ciudad destino = (Ciudad) JOptionPane.showInputDialog(
+                    this,
+                    "Seleccione ciudad destino:",
+                    "Calcular Ruta Óptima",
+                    JOptionPane.QUESTION_MESSAGE,
+                    null,
+                    ciudades.toArray(),
+                    ciudades.isEmpty() ? null : ciudades.get(0));
+
+            if (destino == null) return; // El usuario canceló
+
+            // Mostrar diálogo para hora de salida
+            String horaStr = JOptionPane.showInputDialog(this,
+                    "Hora de salida (HH:MM):",
+                    "12:00");
+
+            if (horaStr == null || horaStr.trim().isEmpty()) return;
+
+            try {
+                String[] partes = horaStr.split(":");
+                int hora = Integer.parseInt(partes[0]);
+                int minuto = partes.length > 1 ? Integer.parseInt(partes[1]) : 0;
+
+                // Validar hora
+                if (hora < 0 || hora > 23 || minuto < 0 || minuto > 59) {
+                    throw new IllegalArgumentException("Hora inválida");
+                }
+
+                // Calcular ruta óptima
+                String resultado = grafo.dijkstra(ciudadSeleccionada, destino, hora, minuto);
+
+                // Mostrar resultados
+                JTextArea textArea = new JTextArea(resultado, 15, 40);
+                textArea.setEditable(false);
+                textArea.setLineWrap(true);
+                textArea.setWrapStyleWord(true);
+
+                JScrollPane scrollPane = new JScrollPane(textArea);
+                JOptionPane.showMessageDialog(this, scrollPane,
+                        "Ruta Óptima: " + ciudadSeleccionada.getNombre() + " → " + destino.getNombre(),
+                        JOptionPane.INFORMATION_MESSAGE);
+
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this,
+                        "Formato de hora inválido. Use HH:MM (ej. 08:30)",
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
             }
         });
 

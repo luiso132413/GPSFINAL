@@ -54,7 +54,7 @@ public class Archivo {
         if (fileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
             File fileToLoad = fileChooser.getSelectedFile();
             Grafo grafo = new Grafo();
-            Map<Integer, Ciudad> ciudadesMap = new HashMap<>(); // Usamos ID como clave
+            Map<Integer, Ciudad> ciudadesMap = new HashMap<>();
 
             try (BufferedReader reader = new BufferedReader(new FileReader(fileToLoad))) {
                 String line;
@@ -82,29 +82,7 @@ public class Archivo {
                             ciudadesMap.put(ciudad.getId(), ciudad);
                         }
                     } else if (enRutas) {
-                        try {
-                            // Formato: "1 -> 2 (Distancia: 123.45 km, Tiempo: 67.89 min)"
-                            String[] partes = line.split(" -> | \\(");
-                            int idOrigen = Integer.parseInt(partes[0].trim());
-                            int idDestino = Integer.parseInt(partes[1].trim());
-
-                            String[] datos = partes[2].replace(")", "").split(", ");
-                            double distancia = Double.parseDouble(datos[0].replace("Distancia: ", "").replace(" km", ""));
-                            double tiempo = Double.parseDouble(datos[1].replace("Tiempo: ", "").replace(" min)", ""));
-
-                            Ciudad origen = ciudadesMap.get(idOrigen);
-                            Ciudad destino = ciudadesMap.get(idDestino);
-
-                            if (origen != null && destino != null) {
-                                // Creamos una lista temporal para usar conectarRuta
-                                List<Ciudad> ruta = new ArrayList<>();
-                                ruta.add(origen);
-                                ruta.add(destino);
-                                grafo.conectarRuta(ruta);
-                            }
-                        } catch (Exception e) {
-                            System.err.println("Error al parsear ruta: " + line);
-                        }
+                        parsearRuta(line, grafo, ciudadesMap);
                     }
                 }
 
@@ -119,6 +97,44 @@ public class Archivo {
             }
         }
         return null;
+    }
+
+    private static void parsearRuta(String linea, Grafo grafo, Map<Integer, Ciudad> ciudadesMap) {
+        try {
+            // Formato esperado: "1 -> 2 (Distancia: 6.63 km, Tiempo: 0.11 min)"
+            String[] partes = linea.split(" -> ");
+            if (partes.length < 2) {
+                System.err.println("Formato de ruta inválido: " + linea);
+                return;
+            }
+
+            // Extraer IDs de origen y destino
+            int idOrigen = Integer.parseInt(partes[0].trim());
+
+            String segundaParte = partes[1].trim();
+            int idDestino = Integer.parseInt(segundaParte.substring(0, segundaParte.indexOf(" ")).trim());
+
+            // Extraer distancia y tiempo
+            String datosRuta = segundaParte.substring(segundaParte.indexOf("(") + 1, segundaParte.indexOf(")"));
+            String[] valores = datosRuta.split(", ");
+
+            double distancia = Double.parseDouble(valores[0].replace("Distancia: ", "").replace(" km", ""));
+            double tiempo = Double.parseDouble(valores[1].replace("Tiempo: ", "").replace(" min", ""));
+
+            // Obtener ciudades
+            Ciudad origen = ciudadesMap.get(idOrigen);
+            Ciudad destino = ciudadesMap.get(idDestino);
+
+            if (origen != null && destino != null) {
+                // Agregar la ruta directamente al grafo
+                grafo.agregarRutaDirecta(origen, destino, distancia, tiempo);
+            } else {
+                System.err.println("Ciudades no encontradas para ruta: " + linea);
+            }
+        } catch (Exception e) {
+            System.err.println("Error al parsear ruta: " + linea);
+            e.printStackTrace();
+        }
     }
 
     private static Ciudad parsearCiudad(String linea) {

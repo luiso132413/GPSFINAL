@@ -45,22 +45,6 @@ public class Ciudad implements Serializable {
         return yVisual;
     }
 
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public void setNombre(String nombre) {
-        this.nombre = nombre;
-    }
-
-    public void setLatitud(double latitud) {
-        this.latitud = latitud;
-    }
-
-    public void setLongitud(double longitud) {
-        this.longitud = longitud;
-    }
-
     public void setXVisual(int xVisual) {
         this.xVisual = xVisual;
     }
