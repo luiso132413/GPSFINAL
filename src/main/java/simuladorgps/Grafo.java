@@ -1,59 +1,91 @@
 package simuladorgps;
 import java.io.Serializable;
 import java.util.*;
+import java.util.Objects;
 import javax.swing.*;
 
 public class Grafo implements Serializable {
     private static final long serialVersionUID = 1L;
-    private Map<Ciudad, List<Ruta>> ady = new HashMap<>();
-    private List<Ciudad> ciudades = new ArrayList<>();
-    private Map<Integer, Ciudad> ciudadPorId = new HashMap<>();
+    private final Map<Ciudad, List<Ruta>> adyacencia = new HashMap<>();
+    private final Map<Integer, Ciudad> ciudadPorId = new HashMap<>();
 
-    public void agregarCiudad(Ciudad ciudad) {
-        if (ciudad == null) {
-            throw new IllegalArgumentException("La ciudad no puede ser null");
+    /**
+     * Verifica si existe una ruta directa de una ciudad a otra
+     * @param origen Ciudad de origen
+     * @param destino Ciudad de destino
+     * @return true si existe una ruta directa, false en caso contrario
+     */
+    public boolean existeRuta(Ciudad origen, Ciudad destino) {
+        Objects.requireNonNull(origen, "La ciudad origen no puede ser null");
+        Objects.requireNonNull(destino, "La ciudad destino no puede ser null");
+
+        if (!adyacencia.containsKey(origen)) {
+            return false;
         }
-        if (!ady.containsKey(ciudad)) {
-            ady.put(ciudad, new ArrayList<>());
-            ciudades.add(ciudad);
+
+        for (Ruta ruta : adyacencia.get(origen)) {
+            if (ruta.getDestino().equals(destino)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Resto de los métodos permanecen igual...
+    public void agregarCiudad(Ciudad ciudad) {
+        Objects.requireNonNull(ciudad, "La ciudad no puede ser null");
+
+        if (!adyacencia.containsKey(ciudad)) {
+            adyacencia.put(ciudad, new ArrayList<>());
             ciudadPorId.put(ciudad.getId(), ciudad);
         }
     }
 
-    public void conectarRuta(List<Ciudad> ciudades) {
-        if (ciudades == null || ciudades.size() < 2) {
+    public void conectarRuta(List<Ciudad> ruta) {
+        Objects.requireNonNull(ruta, "La lista de ciudades no puede ser null");
+        if (ruta.size() < 2) {
             throw new IllegalArgumentException("Se necesitan al menos 2 ciudades para formar una ruta");
         }
 
-        // Verificar que todas las ciudades existan en el grafo
-        for (Ciudad ciudad : ciudades) {
-            if (!ady.containsKey(ciudad)) {
+        for (Ciudad ciudad : ruta) {
+            if (!adyacencia.containsKey(ciudad)) {
                 throw new IllegalArgumentException("La ciudad " + ciudad.getNombre() + " no existe en el grafo");
             }
         }
 
-        // Conectar cada ciudad con la siguiente (unidireccional)
-        for (int i = 0; i < ciudades.size() - 1; i++) {
-            Ciudad origen = ciudades.get(i);
-            Ciudad destino = ciudades.get(i + 1);
-
-            if (!rutaExiste(origen, destino)) {
-                double distancia = Funciones.recorrido(origen.getLatitud(), origen.getLongitud(),
-                        destino.getLatitud(), destino.getLongitud());
-                double tiempo = distancia / 60; // Tiempo estimado (60 km/h velocidad promedio)
-
-                ady.get(origen).add(new Ruta(origen, destino, distancia, tiempo));
-            }
+        for (int i = 0; i < ruta.size() - 1; i++) {
+            conectarDirectamente(ruta.get(i), ruta.get(i + 1));
         }
     }
 
-    private boolean rutaExiste(Ciudad origen, Ciudad destino) {
-        return ady.get(origen).stream()
-                .anyMatch(ruta -> ruta.getDestino().equals(destino));
+    public void conectarCiudad(Ciudad origen, Ciudad destino) {
+        Objects.requireNonNull(origen, "La ciudad origen no puede ser null");
+        Objects.requireNonNull(destino, "La ciudad destino no puede ser null");
+
+        if (!adyacencia.containsKey(origen) || !adyacencia.containsKey(destino)) {
+            throw new IllegalArgumentException("Una o ambas ciudades no existen en el grafo");
+        }
+
+        conectarDirectamente(origen, destino);
+    }
+
+    private void conectarDirectamente(Ciudad origen, Ciudad destino) {
+        if (origen.equals(destino)) {
+            throw new IllegalArgumentException("No se puede conectar una ciudad consigo misma");
+        }
+
+        if (!existeRuta(origen, destino)) {
+            double distancia = Funciones.recorrido(origen.getLatitud(), origen.getLongitud(),
+                    destino.getLatitud(), destino.getLongitud());
+            double tiempo = distancia / 60;
+
+            adyacencia.get(origen).add(new Ruta(origen, destino, distancia, tiempo));
+        }
     }
 
     public List<Ciudad> getCiudades() {
-        return new ArrayList<>(ciudades);
+        return new ArrayList<>(adyacencia.keySet());
     }
 
     public Ciudad getCiudadPorId(int id) {
@@ -61,17 +93,16 @@ public class Grafo implements Serializable {
     }
 
     public List<Ruta> getRutasDesde(Ciudad ciudad) {
-        return new ArrayList<>(ady.getOrDefault(ciudad, new ArrayList<>()));
+        return new ArrayList<>(adyacencia.getOrDefault(ciudad, Collections.emptyList()));
     }
 
-    // Resto de los métodos permanecen exactamente iguales
     public List<Ciudad> rutaMasRapida(Ciudad origen, Ciudad destino, double velocidad) {
         Map<Ciudad, Double> distancias = new HashMap<>();
         Map<Ciudad, Ciudad> anteriores = new HashMap<>();
         PriorityQueue<Ciudad> cola = new PriorityQueue<>(Comparator.comparingDouble(distancias::get));
         Set<Ciudad> visitados = new HashSet<>();
 
-        for(Ciudad ciudad : ciudades) {
+        for(Ciudad ciudad : adyacencia.keySet()) {
             distancias.put(ciudad, Double.MAX_VALUE);
         }
         distancias.put(origen, 0.0);
@@ -84,7 +115,7 @@ public class Grafo implements Serializable {
 
             if(actual.equals(destino)) break;
 
-            for(Ruta ruta : ady.get(actual)) {
+            for(Ruta ruta : adyacencia.get(actual)) {
                 Ciudad vecino = ruta.getDestino();
                 double tiempoViaje = ruta.getDistancia() / velocidad * 60;
                 double nuevaDistancia = distancias.get(actual) + tiempoViaje;
@@ -112,9 +143,9 @@ public class Grafo implements Serializable {
 
     public String mostrarTodasLasRutas() {
         StringBuilder sb = new StringBuilder();
-        for(Ciudad ciudad : ady.keySet()) {
+        for(Ciudad ciudad : adyacencia.keySet()) {
             sb.append("Rutas desde ").append(ciudad.getNombre()).append(":\n");
-            for(Ruta ruta : ady.get(ciudad)) {
+            for(Ruta ruta : adyacencia.get(ciudad)) {
                 sb.append(String.format("  -> %s (%.2f km, %.2f min a las 12:00)%n",
                         ruta.getDestino().getNombre(),
                         ruta.getDistancia(),
@@ -125,12 +156,19 @@ public class Grafo implements Serializable {
     }
 
     public String dijkstra(Ciudad inicio, Ciudad destino, int hora, int minuto) {
+        Objects.requireNonNull(inicio, "La ciudad de inicio no puede ser null");
+        Objects.requireNonNull(destino, "La ciudad destino no puede ser null");
+
+        if (hora < 0 || hora > 23 || minuto < 0 || minuto > 59) {
+            throw new IllegalArgumentException("Hora o minuto inválidos");
+        }
+
         Map<Ciudad, Double> distancias = new HashMap<>();
         Map<Ciudad, Ciudad> anteriores = new HashMap<>();
         PriorityQueue<Ciudad> cola = new PriorityQueue<>(Comparator.comparingDouble(distancias::get));
         Set<Ciudad> visitados = new HashSet<>();
 
-        for(Ciudad ciudad : ciudades) {
+        for(Ciudad ciudad : adyacencia.keySet()) {
             distancias.put(ciudad, Double.MAX_VALUE);
         }
         distancias.put(inicio, 0.0);
@@ -143,7 +181,7 @@ public class Grafo implements Serializable {
 
             if(actual.equals(destino)) break;
 
-            for(Ruta ruta : ady.get(actual)) {
+            for(Ruta ruta : adyacencia.get(actual)) {
                 Ciudad vecino = ruta.getDestino();
                 double tiempoViaje = Funciones.calcularTiempo(ruta.getDistancia(), hora, minuto);
                 double nuevaDistancia = distancias.get(actual) + tiempoViaje;
@@ -181,7 +219,7 @@ public class Grafo implements Serializable {
             Ciudad siguiente = camino.get(i + 1);
 
             Ruta ruta = null;
-            for(Ruta r : ady.get(actual)) {
+            for(Ruta r : adyacencia.get(actual)) {
                 if(r.getDestino().equals(siguiente)) {
                     ruta = r;
                     break;
@@ -203,22 +241,4 @@ public class Grafo implements Serializable {
 
         return sb.toString();
     }
-    public void conectarCiudad(Ciudad origen, Ciudad destino) {
-        if (origen == null || destino == null) {
-            throw new IllegalArgumentException("Las ciudades no pueden ser null");
-        }
-        if (!ady.containsKey(origen) || !ady.containsKey(destino)) {
-            throw new IllegalArgumentException("Una o ambas ciudades no existen en el grafo");
-        }
-        if (rutaExiste(origen, destino)) {
-            return; // Ya existe la conexión
-        }
-
-        double distancia = Funciones.recorrido(origen.getLatitud(), origen.getLongitud(),
-                destino.getLatitud(), destino.getLongitud());
-        double tiempo = distancia / 60; // Tiempo estimado (60 km/h velocidad promedio)
-
-        ady.get(origen).add(new Ruta(origen, destino, distancia, tiempo));
-    }
-
 }

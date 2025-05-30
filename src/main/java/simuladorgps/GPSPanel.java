@@ -15,7 +15,7 @@ public class GPSPanel extends JFrame {
     private Ciudad ciudadSeleccionada = null;
     private Ciudad ciudadOrigenConexion = null;
     private Ciudad ciudadArrastrando = null;
-    private Point puntoArrastre = null;
+    private boolean modoArrastreActivo = false;
 
     public GPSPanel() {
         setTitle("Simulador GPS con Nodos Movibles");
@@ -27,11 +27,9 @@ public class GPSPanel extends JFrame {
         JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JButton conectarBtn = new JButton("Conectar Ciudades");
         JButton modoArrastreBtn = new JButton("Modo Arrastre");
-        JButton dijkstraBtn = new JButton("Dijkstra");
         JButton guardarBtn = new JButton("Guardar");
         JButton cargarBtn = new JButton("Cargar");
 
-        controlPanel.add(dijkstraBtn);
         controlPanel.add(conectarBtn);
         controlPanel.add(modoArrastreBtn);
         controlPanel.add(guardarBtn);
@@ -57,47 +55,55 @@ public class GPSPanel extends JFrame {
             public void mousePressed(MouseEvent e) {
                 if (SwingUtilities.isRightMouseButton(e)) {
                     mostrarDialogoNuevaCiudad(e.getX(), e.getY());
-                } else {
-                    ciudadArrastrando = obtenerCiudadCercana(e.getX(), e.getY());
-                    if (ciudadArrastrando != null) {
-                        puntoArrastre = e.getPoint();
+                    return;
+                }
+
+                Ciudad ciudadClicada = obtenerCiudadCercana(e.getX(), e.getY());
+
+                if (modoArrastreActivo && ciudadSeleccionada != null) {
+                    if (ciudadClicada != null && ciudadClicada.equals(ciudadSeleccionada)) {
+                        ciudadArrastrando = ciudadClicada;
                         mapPanel.setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
                     }
+                    return;
                 }
+
+                if (ciudadClicada != null) {
+                    ciudadSeleccionada = ciudadClicada;
+                    infoArea.append("Ciudad seleccionada: " + ciudadSeleccionada.getNombre() + "\n");
+
+                    if (ciudadOrigenConexion != null) {
+                        if (ciudadClicada.equals(ciudadOrigenConexion)) {
+                            infoArea.append("No se puede conectar una ciudad consigo misma\n");
+                        } else {
+                            if (!grafo.existeRuta(ciudadOrigenConexion, ciudadClicada)) {
+                                grafo.conectarCiudad(ciudadOrigenConexion, ciudadClicada);
+                                actualizarDistanciasRutas(ciudadOrigenConexion);
+                                infoArea.append("Ruta creada: " + ciudadOrigenConexion.getNombre() +
+                                        " → " + ciudadClicada.getNombre() + "\n");
+                            } else {
+                                infoArea.append("Ya existe una ruta desde " + ciudadOrigenConexion.getNombre() +
+                                        " hasta " + ciudadClicada.getNombre() + "\n");
+                            }
+                        }
+                        ciudadOrigenConexion = null;
+                        mapPanel.setCursor(Cursor.getDefaultCursor());
+                    }
+                }
+                mapPanel.repaint();
             }
 
             @Override
             public void mouseReleased(MouseEvent e) {
                 if (ciudadArrastrando != null) {
-                    // Guardar la posición visual final
                     ciudadArrastrando.setXVisual(e.getX());
                     ciudadArrastrando.setYVisual(e.getY());
-
-                    // Mostrar mensaje en consola
-                    System.out.println("Ciudad " + ciudadArrastrando.getNombre() +
-                            " movida a (x=" + e.getX() + ", y=" + e.getY() + ")");
-
                     ciudadArrastrando = null;
-                    mapPanel.repaint(); // Forzar repintado inmediato
-                }
-            }
-        });
-
-        mapPanel.addMouseMotionListener(new MouseMotionAdapter() {
-            @Override
-            public void mouseDragged(MouseEvent e) {
-                if (ciudadArrastrando != null) {
-                    // Solo actualizar las coordenadas visuales, no las geográficas
-                    ciudadArrastrando.setXVisual(e.getX());
-                    ciudadArrastrando.setYVisual(e.getY());
+                    mapPanel.setCursor(Cursor.getDefaultCursor());
                     mapPanel.repaint();
                 }
             }
         });
-
-
-
-
         add(new JScrollPane(mapPanel), BorderLayout.CENTER);
 
         // Panel inferior para información
@@ -107,8 +113,24 @@ public class GPSPanel extends JFrame {
         add(new JScrollPane(infoArea), BorderLayout.SOUTH);
 
         // Configurar acciones de los botones
-        conectarBtn.addActionListener(e -> iniciarModoConexion());
-        modoArrastreBtn.addActionListener(e -> toggleModoArrastre());
+        conectarBtn.addActionListener(e -> {
+            if (ciudadSeleccionada == null) {
+                JOptionPane.showMessageDialog(this, "Seleccione una ciudad primero",
+                        "Conectar Ciudades", JOptionPane.WARNING_MESSAGE);
+            } else {
+                ciudadOrigenConexion = ciudadSeleccionada;
+                infoArea.append("Modo conexión: Seleccione ciudad destino para " +
+                        ciudadOrigenConexion.getNombre() + "\n");
+                mapPanel.setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
+                mapPanel.repaint();
+            }
+        });
+
+        modoArrastreBtn.addActionListener(e -> {
+            toggleModoArrastre();  // Agregar paréntesis y punto y coma
+        });
+
+
 
         guardarBtn.addActionListener(e -> {
             if (grafo.getCiudades().isEmpty()) {
@@ -130,34 +152,6 @@ public class GPSPanel extends JFrame {
             }
         });
 
-        dijkstraBtn.addActionListener(e -> {
-            if (grafo.getCiudades().size() < 2) {
-                JOptionPane.showMessageDialog(GPSPanel.this, "Debe haber al menos 2 ciudades.");
-                return;
-            }
-
-            Ciudad origen = seleccionarCiudad("Selecciona la ciudad **origen**:");
-            if (origen == null) return;
-
-            Ciudad destino = seleccionarCiudad("Selecciona la ciudad **destino**:");
-            if (destino == null || destino == origen) {
-                JOptionPane.showMessageDialog(GPSPanel.this, "Destino inválido.");
-                return;
-            }
-
-            String horaStr = JOptionPane.showInputDialog(GPSPanel.this, "Hora actual (0–23):");
-            String minutoStr = JOptionPane.showInputDialog(GPSPanel.this, "Minuto actual (0–59):");
-            try {
-                int hora = Integer.parseInt(horaStr);
-                int minuto = Integer.parseInt(minutoStr);
-                double velocidad = Funciones.velocidadPorHora(hora, minuto);
-                List<Ciudad> ruta = grafo.rutaMasRapida(origen, destino, velocidad);
-                mostrarRuta(ruta, velocidad);
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(GPSPanel.this, "Entrada inválida.");
-            }
-        });
-
         setVisible(true);
     }
 
@@ -169,56 +163,14 @@ public class GPSPanel extends JFrame {
     }
 
     private Ciudad obtenerCiudadCercana(int x, int y) {
-        int rango = 15; // tolerancia en píxeles
+        final int RADIO_DETECCION = 20;
+
         for (Ciudad ciudad : grafo.getCiudades()) {
-            int cx = ciudad.getXVisual();
-            int cy = ciudad.getYVisual();
-            double distancia = Math.sqrt((cx - x) * (cx - x) + (cy - y) * (cy - y));
-            if (distancia <= rango) {
-                return ciudad;
-            }
-        }
-        return null;
-    }
+            int ciudadX = ciudad.getXVisual() != 0 ? ciudad.getXVisual() : convertirLongitudAX(ciudad.getLongitud());
+            int ciudadY = ciudad.getYVisual() != 0 ? ciudad.getYVisual() : convertirLatitudAY(ciudad.getLatitud());
 
-    private void mostrarRuta(List<Ciudad> ruta, double tiempoTotal) {
-        if (ruta == null || ruta.isEmpty()) {
-            infoArea.setText("No se encontró ruta.");
-            return;
-        }
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("Ruta más rápida:\n");
-        for (Ciudad ciudad : ruta) {
-            sb.append(ciudad.getNombre()).append(" -> ");
-        }
-        sb.setLength(sb.length() - 4);
-        sb.append("\nTiempo estimado: ").append(String.format("%.2f", tiempoTotal)).append(" minutos");
-
-        infoArea.setText(sb.toString());
-
-        Graphics g = mapPanel.getGraphics();
-        g.setColor(Color.RED);
-        for (int i = 0; i < ruta.size() - 1; i++) {
-            Ciudad c1 = ruta.get(i);
-            Ciudad c2 = ruta.get(i + 1);
-            int x1 = (int) ((c1.getLongitud() + 180) * mapPanel.getWidth() / 360);
-            int y1 = (int) ((90 - c1.getLatitud()) * mapPanel.getHeight() / 180);
-            int x2 = (int) ((c2.getLongitud() + 180) * mapPanel.getWidth() / 360);
-            int y2 = (int) ((90 - c2.getLatitud()) * mapPanel.getHeight() / 180);
-            g.drawLine(x1, y1, x2, y2);
-        }
-    }
-
-    // Resto de los métodos permanecen igual...
-    private Ciudad seleccionarCiudad(String mensaje) {
-        List<Ciudad> ciudades = grafo.getCiudades();
-        String[] opciones = ciudades.stream().map(Ciudad::getNombre).toArray(String[]::new);
-        String seleccion = (String) JOptionPane.showInputDialog(this, mensaje, "Seleccionar Ciudad",
-                JOptionPane.PLAIN_MESSAGE, null, opciones, opciones[0]);
-
-        for (Ciudad ciudad : ciudades) {
-            if (ciudad.getNombre().equals(seleccion)) {
+            double distancia = Math.sqrt(Math.pow(ciudadX - x, 2) + Math.pow(ciudadY - y, 2));
+            if (distancia <= RADIO_DETECCION) {
                 return ciudad;
             }
         }
@@ -232,7 +184,6 @@ public class GPSPanel extends JFrame {
         for (Ciudad ciudad : grafo.getCiudades()) {
             int x, y;
 
-            // Usar coordenadas visuales si están establecidas, de lo contrario calcular desde geográficas
             if (ciudad.getXVisual() != 0 && ciudad.getYVisual() != 0) {
                 x = ciudad.getXVisual();
                 y = ciudad.getYVisual();
@@ -243,7 +194,6 @@ public class GPSPanel extends JFrame {
                 ciudad.setYVisual(y);
             }
 
-            // Resto del código de dibujo...
             g2d.setColor(new Color(100, 100, 100, 50));
             g2d.fillOval(x - 9, y - 6, 20, 20);
 
@@ -266,26 +216,41 @@ public class GPSPanel extends JFrame {
         }
     }
 
-
     private void dibujarRutas(Graphics g) {
-        g.setColor(new Color(100, 100, 100));
         Graphics2D g2d = (Graphics2D) g;
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setStroke(new BasicStroke(2));
+        g2d.setColor(new Color(100, 100, 100));
+
+        // Usar un Set para evitar dibujar rutas duplicadas
+        Set<Map.Entry<Ciudad, Ciudad>> rutasDibujadas = new HashSet<>();
 
         for (Ciudad origen : grafo.getCiudades()) {
             for (Ruta ruta : grafo.getRutasDesde(origen)) {
                 Ciudad destino = ruta.getDestino();
-                int x1 = convertirLongitudAX(origen.getLongitud());
-                int y1 = convertirLatitudAY(origen.getLatitud());
-                int x2 = convertirLongitudAX(destino.getLongitud());
-                int y2 = convertirLatitudAY(destino.getLatitud());
+
+                // Verificar si ya dibujamos esta conexión
+                if (rutasDibujadas.contains(new AbstractMap.SimpleEntry<>(destino, origen))) {
+                    continue;
+                }
+                rutasDibujadas.add(new AbstractMap.SimpleEntry<>(origen, destino));
+
+                // Usar coordenadas visuales si existen
+                int x1 = origen.getXVisual() != 0 ? origen.getXVisual() : convertirLongitudAX(origen.getLongitud());
+                int y1 = origen.getYVisual() != 0 ? origen.getYVisual() : convertirLatitudAY(origen.getLatitud());
+                int x2 = destino.getXVisual() != 0 ? destino.getXVisual() : convertirLongitudAX(destino.getLongitud());
+                int y2 = destino.getYVisual() != 0 ? destino.getYVisual() : convertirLatitudAY(destino.getLatitud());
 
                 g2d.drawLine(x1, y1, x2, y2);
 
-                String distancia = String.format("%.1f km", ruta.getDistancia());
-                g.setColor(Color.BLACK);
-                g.setFont(new Font("Arial", Font.PLAIN, 10));
-                g.drawString(distancia, (x1 + x2) / 2, (y1 + y2) / 2);
+                // Dibujar distancia solo si hay suficiente espacio
+                if (Math.sqrt(Math.pow(x2-x1, 2) + Math.pow(y2-y1, 2)) > 50) {
+                    String distancia = String.format("%.1f km", ruta.getDistancia());
+                    g2d.setColor(Color.BLACK);
+                    g2d.setFont(new Font("Arial", Font.PLAIN, 10));
+                    g2d.drawString(distancia, (x1 + x2) / 2, (y1 + y2) / 2);
+                    g2d.setColor(new Color(100, 100, 100));
+                }
             }
         }
     }
@@ -321,52 +286,23 @@ public class GPSPanel extends JFrame {
             return;
         }
 
-        if (ciudadArrastrando == null) {
-            // Activar modo arrastre
-            ciudadArrastrando = ciudadSeleccionada;
-            puntoArrastre = new Point(
-                    convertirLongitudAX(ciudadArrastrando.getLongitud()),
-                    convertirLatitudAY(ciudadArrastrando.getLatitud())
-            );
-            mapPanel.setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
-            infoArea.append("Modo arrastre: Mueva la ciudad " + ciudadArrastrando.getNombre() + "\n");
+        modoArrastreActivo = !modoArrastreActivo;
+        if (modoArrastreActivo) {
+            infoArea.append("Modo arrastre ACTIVADO para " + ciudadSeleccionada.getNombre() + "\n");
         } else {
-            // Desactivar modo arrastre
-            ciudadArrastrando = null;
-            puntoArrastre = null;
-            mapPanel.setCursor(Cursor.getDefaultCursor());
-            infoArea.append("Modo arrastre desactivado\n");
-        }
-        mapPanel.repaint();
-    }
-
-    // Método para manejar el evento de soltar la ciudad
-    private void manejarSoltarCiudad(int x, int y) {
-        if (ciudadArrastrando != null) {
-            // Solo actualizar coordenadas visuales
-            ciudadArrastrando.setXVisual(x);
-            ciudadArrastrando.setYVisual(y);
-
-            infoArea.append("Ciudad " + ciudadArrastrando.getNombre() +
-                    " movida visualmente a (x=" + x + ", y=" + y + ")\n");
-            mapPanel.repaint();
+            infoArea.append("Modo arrastre DESACTIVADO\n");
         }
     }
 
-
-
-    // Método para actualizar distancias de rutas conectadas
     private void actualizarDistanciasRutas(Ciudad ciudad) {
-        // Actualizar rutas que salen de esta ciudad
         for (Ruta ruta : grafo.getRutasDesde(ciudad)) {
             double nuevaDistancia = Funciones.recorrido(
                     ciudad.getLatitud(), ciudad.getLongitud(),
                     ruta.getDestino().getLatitud(), ruta.getDestino().getLongitud());
             ruta.setDistancia(nuevaDistancia);
-            ruta.setTiempo(nuevaDistancia / 60); // Actualizar tiempo estimado
+            ruta.setTiempo(nuevaDistancia / 60);
         }
 
-        // Actualizar rutas que llegan a esta ciudad
         for (Ciudad origen : grafo.getCiudades()) {
             for (Ruta ruta : grafo.getRutasDesde(origen)) {
                 if (ruta.getDestino().equals(ciudad)) {
@@ -384,12 +320,10 @@ public class GPSPanel extends JFrame {
         JPanel panel = new JPanel(new GridLayout(4, 2, 5, 5));
         panel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
-        // Campos de texto vacíos para que el usuario ingrese los valores
         JTextField nombreField = new JTextField();
         JTextField latitudField = new JTextField();
         JTextField longitudField = new JTextField();
 
-        // Agregar sugerencias (opcional)
         latitudField.setToolTipText("Ejemplo: -34.603722 para Buenos Aires");
         longitudField.setToolTipText("Ejemplo: -58.381592 para Buenos Aires");
 
@@ -414,7 +348,6 @@ public class GPSPanel extends JFrame {
                 double lat = Double.parseDouble(latitudField.getText().trim());
                 double lon = Double.parseDouble(longitudField.getText().trim());
 
-                // Validar rangos de latitud y longitud
                 if (lat < -90 || lat > 90) {
                     JOptionPane.showMessageDialog(this, "La latitud debe estar entre -90 y 90 grados.", "Error", JOptionPane.ERROR_MESSAGE);
                     return;
@@ -437,50 +370,6 @@ public class GPSPanel extends JFrame {
                         "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
-    }
-
-    private void manejarClicCiudad(int x, int y) {
-        Ciudad ciudadClicada = null;
-        for (Ciudad ciudad : grafo.getCiudades()) {
-            int cx = convertirLongitudAX(ciudad.getLongitud());
-            int cy = convertirLatitudAY(ciudad.getLatitud());
-
-            if (Math.sqrt(Math.pow(x - cx, 2) + Math.pow(y - cy, 2)) <= 15) {
-                ciudadClicada = ciudad;
-                break;
-            }
-        }
-
-        if (ciudadArrastrando != null) return;
-
-        if (ciudadOrigenConexion != null) {
-            if (ciudadClicada != null && !ciudadClicada.equals(ciudadOrigenConexion)) {
-                grafo.conectarCiudad(ciudadOrigenConexion, ciudadClicada);
-                infoArea.append("Ruta creada: " + ciudadOrigenConexion.getNombre() +
-                        " ↔ " + ciudadClicada.getNombre() + "\n");
-            }
-            ciudadOrigenConexion = null;
-        } else if (ciudadClicada != null) {
-            ciudadSeleccionada = ciudadClicada;
-            infoArea.append("Ciudad seleccionada: " + ciudadSeleccionada.getNombre() + "\n");
-        } else {
-            ciudadSeleccionada = null;
-        }
-
-        mapPanel.repaint();
-    }
-
-    private void iniciarModoConexion() {
-        if (ciudadSeleccionada == null) {
-            JOptionPane.showMessageDialog(this, "Seleccione una ciudad primero", "Conectar Ciudades",
-                    JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-
-        ciudadOrigenConexion = ciudadSeleccionada;
-        infoArea.append("Modo conexión: Seleccione ciudad destino para " +
-                ciudadOrigenConexion.getNombre() + "\n");
-        mapPanel.repaint();
     }
 
     public static void main(String[] args) {
