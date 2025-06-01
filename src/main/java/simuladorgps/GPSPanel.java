@@ -11,7 +11,7 @@ public class GPSPanel extends JFrame {
     private Grafo grafo = new Grafo();
     private int nextId = 1;
     private JPanel mapPanel;
-    private JTextArea infoArea = new JTextArea(); // Inicializado aquí
+    private JTextArea infoArea = new JTextArea();
     private Ciudad ciudadSeleccionada = null;
     private Ciudad ciudadOrigenConexion = null;
     private Ciudad ciudadArrastrando = null;

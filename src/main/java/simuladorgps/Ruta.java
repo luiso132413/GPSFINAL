@@ -46,8 +46,6 @@ public class Ruta implements Serializable {
     public void setTiempo(double tiempo) {
         this.tiempo = tiempo;
     }
-
-    // En tu clase Ruta
     @Override
     public String toString() {
         return String.format("%s -> %s (%.2f km, %.2f min)",

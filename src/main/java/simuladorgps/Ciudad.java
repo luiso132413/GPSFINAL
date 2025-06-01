@@ -9,12 +9,11 @@ public class Ciudad implements Serializable {
     private String nombre;
     private double latitud;
     private double longitud;
+    private boolean accidente = false;
+
     // Coordenadas visuales
     private int xVisual;
     private int yVisual;
-
-    // Nuevo: bandera de accidente
-    private boolean accidente = false;
 
     public Ciudad(int id, String nombre, double latitud, double longitud) {
         this.id = id;

@@ -86,7 +86,6 @@ public class Archivo {
                     }
                 }
 
-                // Distribuir ciudades si no tienen coordenadas visuales
                 distribuirCiudadesVisualmente(grafo);
 
                 JOptionPane.showMessageDialog(null,
@@ -114,7 +113,6 @@ public class Archivo {
 
             Ciudad ciudad = new Ciudad(id, nombre, latitud, longitud);
 
-            // Si el archivo incluye coordenadas visuales
             if (datos.length > 3) {
                 int x = Integer.parseInt(datos[3].replace("X: ", ""));
                 int y = Integer.parseInt(datos[4].replace("Y: ", ""));
@@ -131,7 +129,6 @@ public class Archivo {
 
     private static void parsearRuta(String linea, Grafo grafo, Map<Integer, Ciudad> ciudadesMap) {
         try {
-            // Formato esperado: "1 -> 2 (Distancia: 6.63 km, Tiempo: 0.11 min)"
             String[] partes = linea.split(" -> ");
             if (partes.length < 2) {
                 System.err.println("Formato de ruta inválido: " + linea);
