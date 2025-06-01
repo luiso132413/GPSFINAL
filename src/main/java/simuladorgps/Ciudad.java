@@ -9,10 +9,12 @@ public class Ciudad implements Serializable {
     private String nombre;
     private double latitud;
     private double longitud;
-
     // Coordenadas visuales
     private int xVisual;
     private int yVisual;
+
+    // Nuevo: bandera de accidente
+    private boolean accidente = false;
 
     public Ciudad(int id, String nombre, double latitud, double longitud) {
         this.id = id;
@@ -53,9 +55,18 @@ public class Ciudad implements Serializable {
         this.yVisual = yVisual;
     }
 
+    // Nuevo: getter y setter de accidente
+    public boolean tieneAccidente() {
+        return accidente;
+    }
+
+    public void setAccidente(boolean accidente) {
+        this.accidente = accidente;
+    }
+
     @Override
     public String toString() {
-        return String.format("%s (ID: %d, Lat: %.6f, Long: %.6f, X: %d, Y: %d)",
-                nombre, id, latitud, longitud, xVisual, yVisual);
+        return String.format("%s (ID: %d, Lat: %.6f, Long: %.6f, X: %d, Y: %d, Accidente: %b)",
+                nombre, id, latitud, longitud, xVisual, yVisual, accidente);
     }
 }

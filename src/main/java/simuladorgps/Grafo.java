@@ -120,8 +120,19 @@ public class Grafo implements Serializable {
             Ciudad actual = cola.poll();
             if (actual.equals(destino)) break;
 
+            // Si la ciudad actual tiene accidente, ignoramos sus rutas (no expandimos desde aquí)
+            if (actual.tieneAccidente()) {
+                continue;
+            }
+
             for (Ruta ruta : adyacencia.get(actual)) {
                 Ciudad vecino = ruta.getDestino();
+
+                // Ignorar rutas hacia ciudades con accidente
+                if (vecino.tieneAccidente()) {
+                    continue;
+                }
+
                 double tiempo = calculadorTiempo.apply(ruta, 0, 0);
                 double nuevaDistancia = distancias.get(actual) + tiempo;
 

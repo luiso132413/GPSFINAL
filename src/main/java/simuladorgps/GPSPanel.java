@@ -16,6 +16,7 @@ public class GPSPanel extends JFrame {
     private Ciudad ciudadOrigenConexion = null;
     private Ciudad ciudadArrastrando = null;
     private boolean modoArrastreActivo = false;
+    private boolean modoAccidente = false;
 
     public GPSPanel() {
         setTitle("Simulador GPS con Nodos Movibles");
@@ -29,12 +30,15 @@ public class GPSPanel extends JFrame {
         JButton guardarBtn = new JButton("Guardar");
         JButton cargarBtn = new JButton("Cargar");
         JButton calcularRutaBtn = new JButton("Calcular Ruta Óptima");
+        JButton btnMarcarAccidente = new JButton("Accidente");
 
         controlPanel.add(calcularRutaBtn);
         controlPanel.add(conectarBtn);
         controlPanel.add(modoArrastreBtn);
         controlPanel.add(guardarBtn);
         controlPanel.add(cargarBtn);
+        controlPanel.add(btnMarcarAccidente);
+
 
         add(controlPanel, BorderLayout.NORTH);
 
@@ -72,6 +76,22 @@ public class GPSPanel extends JFrame {
                     ciudadSeleccionada = ciudadClicada;
                     infoArea.append("Ciudad seleccionada: " + ciudadSeleccionada.getNombre() + "\n");
 
+                    // 🔴 Marcar o quitar accidente si el modo está activado (toggle)
+                    if (modoAccidente) {
+                        boolean estadoActual = ciudadClicada.tieneAccidente();
+                        ciudadClicada.setAccidente(!estadoActual);
+
+                        if (ciudadClicada.tieneAccidente()) {
+                            infoArea.append("⚠️ Accidente marcado en: " + ciudadClicada.getNombre() + "\n");
+                        } else {
+                            infoArea.append("✅ Accidente quitado en: " + ciudadClicada.getNombre() + "\n");
+                        }
+
+                        modoAccidente = false;  // Puedes quitar esta línea para seguir en modo accidente
+                        mapPanel.repaint();
+                        return;
+                    }
+
                     if (ciudadOrigenConexion != null) {
                         if (ciudadClicada.equals(ciudadOrigenConexion)) {
                             infoArea.append("No se puede conectar una ciudad consigo misma\n");
@@ -104,6 +124,8 @@ public class GPSPanel extends JFrame {
                 }
             }
         });
+
+
 
         mapPanel.addMouseMotionListener(new MouseMotionAdapter() {
             @Override
@@ -233,6 +255,11 @@ public class GPSPanel extends JFrame {
             }
         });
 
+        btnMarcarAccidente.addActionListener(e -> {
+            modoAccidente = true;
+            infoArea.append("Haz clic en una ciudad para marcarla como con accidente.\n");
+        });
+
         setVisible(true);
     }
 
@@ -275,21 +302,26 @@ public class GPSPanel extends JFrame {
                 ciudad.setYVisual(y);
             }
 
+            // Sombra
             g2d.setColor(new Color(100, 100, 100, 50));
             g2d.fillOval(x - 9, y - 6, 20, 20);
 
-            if (ciudad == ciudadSeleccionada) {
-                g2d.setColor(new Color(255, 100, 100));
+            // Color del nodo según estado
+            if (ciudad.tieneAccidente()) {
+                g2d.setColor(Color.RED); // 🔴 Accidente
+            } else if (ciudad == ciudadSeleccionada) {
+                g2d.setColor(new Color(255, 100, 100)); // Seleccionada
             } else if (ciudad == ciudadArrastrando) {
-                g2d.setColor(new Color(255, 200, 0));
+                g2d.setColor(new Color(255, 200, 0)); // En arrastre
             } else {
-                g2d.setColor(new Color(70, 130, 180));
+                g2d.setColor(new Color(70, 130, 180)); // Normal
             }
 
             g2d.fillOval(x - 10, y - 10, 20, 20);
             g2d.setColor(Color.BLACK);
             g2d.drawOval(x - 10, y - 10, 20, 20);
 
+            // Texto
             g2d.setFont(new Font("Arial", Font.BOLD, 12));
             g2d.drawString(ciudad.getNombre(), x + 15, y + 5);
             g2d.setFont(new Font("Arial", Font.PLAIN, 10));
