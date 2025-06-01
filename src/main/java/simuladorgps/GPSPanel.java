@@ -11,7 +11,7 @@ public class GPSPanel extends JFrame {
     private Grafo grafo = new Grafo();
     private int nextId = 1;
     private JPanel mapPanel;
-    private JTextArea infoArea;
+    private JTextArea infoArea = new JTextArea(); // Inicializado aquí
     private Ciudad ciudadSeleccionada = null;
     private Ciudad ciudadOrigenConexion = null;
     private Ciudad ciudadArrastrando = null;
@@ -23,14 +23,12 @@ public class GPSPanel extends JFrame {
         setSize(1000, 700);
         setLayout(new BorderLayout());
 
-        // Panel superior con botones
         JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JButton conectarBtn = new JButton("Conectar Ciudades");
         JButton modoArrastreBtn = new JButton("Modo Arrastre");
         JButton guardarBtn = new JButton("Guardar");
         JButton cargarBtn = new JButton("Cargar");
         JButton calcularRutaBtn = new JButton("Calcular Ruta Óptima");
-
 
         controlPanel.add(calcularRutaBtn);
         controlPanel.add(conectarBtn);
@@ -40,7 +38,6 @@ public class GPSPanel extends JFrame {
 
         add(controlPanel, BorderLayout.NORTH);
 
-        // Panel central para el mapa
         mapPanel = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
@@ -107,6 +104,18 @@ public class GPSPanel extends JFrame {
                 }
             }
         });
+
+        mapPanel.addMouseMotionListener(new MouseMotionAdapter() {
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                if (ciudadArrastrando != null) {
+                    ciudadArrastrando.setXVisual(e.getX());
+                    ciudadArrastrando.setYVisual(e.getY());
+                    mapPanel.repaint();
+                }
+            }
+        });
+
         add(new JScrollPane(mapPanel), BorderLayout.CENTER);
 
         // Panel inferior para información
@@ -130,7 +139,7 @@ public class GPSPanel extends JFrame {
         });
 
         modoArrastreBtn.addActionListener(e -> {
-            toggleModoArrastre();  // Agregar paréntesis y punto y coma
+            toggleModoArrastre();
         });
 
         guardarBtn.addActionListener(e -> {
@@ -166,6 +175,14 @@ public class GPSPanel extends JFrame {
             List<Ciudad> ciudades = grafo.getCiudades();
             ciudades.remove(ciudadSeleccionada); // Quitamos la ciudad origen
 
+            if (ciudades.isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "No hay ciudades destino disponibles",
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
             Ciudad destino = (Ciudad) JOptionPane.showInputDialog(
                     this,
                     "Seleccione ciudad destino:",
@@ -173,7 +190,7 @@ public class GPSPanel extends JFrame {
                     JOptionPane.QUESTION_MESSAGE,
                     null,
                     ciudades.toArray(),
-                    ciudades.isEmpty() ? null : ciudades.get(0));
+                    ciudades.get(0));
 
             if (destino == null) return; // El usuario canceló
 
@@ -422,6 +439,8 @@ public class GPSPanel extends JFrame {
                 }
 
                 Ciudad nuevaCiudad = new Ciudad(nextId++, nombre, lat, lon);
+                nuevaCiudad.setXVisual(x);
+                nuevaCiudad.setYVisual(y);
                 grafo.agregarCiudad(nuevaCiudad);
                 mapPanel.repaint();
 

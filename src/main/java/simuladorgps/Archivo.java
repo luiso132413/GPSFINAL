@@ -86,6 +86,9 @@ public class Archivo {
                     }
                 }
 
+                // Distribuir ciudades si no tienen coordenadas visuales
+                distribuirCiudadesVisualmente(grafo);
+
                 JOptionPane.showMessageDialog(null,
                         "Datos cargados exitosamente desde: " + fileToLoad.getAbsolutePath());
                 return grafo;
@@ -99,44 +102,6 @@ public class Archivo {
         return null;
     }
 
-    private static void parsearRuta(String linea, Grafo grafo, Map<Integer, Ciudad> ciudadesMap) {
-        try {
-            // Formato esperado: "1 -> 2 (Distancia: 6.63 km, Tiempo: 0.11 min)"
-            String[] partes = linea.split(" -> ");
-            if (partes.length < 2) {
-                System.err.println("Formato de ruta inválido: " + linea);
-                return;
-            }
-
-            // Extraer IDs de origen y destino
-            int idOrigen = Integer.parseInt(partes[0].trim());
-
-            String segundaParte = partes[1].trim();
-            int idDestino = Integer.parseInt(segundaParte.substring(0, segundaParte.indexOf(" ")).trim());
-
-            // Extraer distancia y tiempo
-            String datosRuta = segundaParte.substring(segundaParte.indexOf("(") + 1, segundaParte.indexOf(")"));
-            String[] valores = datosRuta.split(", ");
-
-            double distancia = Double.parseDouble(valores[0].replace("Distancia: ", "").replace(" km", ""));
-            double tiempo = Double.parseDouble(valores[1].replace("Tiempo: ", "").replace(" min", ""));
-
-            // Obtener ciudades
-            Ciudad origen = ciudadesMap.get(idOrigen);
-            Ciudad destino = ciudadesMap.get(idDestino);
-
-            if (origen != null && destino != null) {
-                // Agregar la ruta directamente al grafo
-                grafo.agregarRutaDirecta(origen, destino, distancia, tiempo);
-            } else {
-                System.err.println("Ciudades no encontradas para ruta: " + linea);
-            }
-        } catch (Exception e) {
-            System.err.println("Error al parsear ruta: " + linea);
-            e.printStackTrace();
-        }
-    }
-
     private static Ciudad parsearCiudad(String linea) {
         try {
             String[] partes = linea.split(" \\(");
@@ -147,10 +112,75 @@ public class Archivo {
             double latitud = Double.parseDouble(datos[1].replace("Lat: ", ""));
             double longitud = Double.parseDouble(datos[2].replace("Long: ", ""));
 
-            return new Ciudad(id, nombre, latitud, longitud);
+            Ciudad ciudad = new Ciudad(id, nombre, latitud, longitud);
+
+            // Si el archivo incluye coordenadas visuales
+            if (datos.length > 3) {
+                int x = Integer.parseInt(datos[3].replace("X: ", ""));
+                int y = Integer.parseInt(datos[4].replace("Y: ", ""));
+                ciudad.setXVisual(x);
+                ciudad.setYVisual(y);
+            }
+
+            return ciudad;
         } catch (Exception e) {
             System.err.println("Error al parsear ciudad: " + linea);
             return null;
+        }
+    }
+
+    private static void parsearRuta(String linea, Grafo grafo, Map<Integer, Ciudad> ciudadesMap) {
+        try {
+            // Formato esperado: "1 -> 2 (Distancia: 6.63 km, Tiempo: 0.11 min)"
+            String[] partes = linea.split(" -> ");
+            if (partes.length < 2) {
+                System.err.println("Formato de ruta inválido: " + linea);
+                return;
+            }
+
+            int idOrigen = Integer.parseInt(partes[0].trim());
+
+            String segundaParte = partes[1].trim();
+            int idDestino = Integer.parseInt(segundaParte.substring(0, segundaParte.indexOf(" ")).trim());
+
+            String datosRuta = segundaParte.substring(segundaParte.indexOf("(") + 1, segundaParte.indexOf(")"));
+            String[] valores = datosRuta.split(", ");
+
+            double distancia = Double.parseDouble(valores[0].replace("Distancia: ", "").replace(" km", ""));
+            double tiempo = Double.parseDouble(valores[1].replace("Tiempo: ", "").replace(" min", ""));
+
+            Ciudad origen = ciudadesMap.get(idOrigen);
+            Ciudad destino = ciudadesMap.get(idDestino);
+
+            if (origen != null && destino != null) {
+                grafo.agregarRutaDirecta(origen, destino, distancia, tiempo);
+            } else {
+                System.err.println("Ciudades no encontradas para ruta: " + linea);
+            }
+        } catch (Exception e) {
+            System.err.println("Error al parsear ruta: " + linea);
+            e.printStackTrace();
+        }
+    }
+
+    private static void distribuirCiudadesVisualmente(Grafo grafo) {
+        List<Ciudad> ciudades = grafo.getCiudades();
+        int centerX = 400; // Centro X del panel
+        int centerY = 300; // Centro Y del panel
+        int radius = Math.min(centerX, centerY) - 50; // Radio del círculo
+
+        double angleStep = 2 * Math.PI / ciudades.size();
+        double currentAngle = 0;
+
+        for (Ciudad ciudad : ciudades) {
+            // Si la ciudad ya tiene coordenadas visuales, no las cambiamos
+            if (ciudad.getXVisual() == 0 && ciudad.getYVisual() == 0) {
+                int x = (int)(centerX + radius * Math.cos(currentAngle));
+                int y = (int)(centerY + radius * Math.sin(currentAngle));
+                ciudad.setXVisual(x);
+                ciudad.setYVisual(y);
+                currentAngle += angleStep;
+            }
         }
     }
 }

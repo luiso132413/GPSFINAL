@@ -135,7 +135,6 @@ public class Grafo implements Serializable {
     public void agregarRutaDirecta(Ciudad origen, Ciudad destino, double distancia, double tiempo) {
         validarConexion(origen, destino);
 
-        // Verificar si la ruta ya existe
         if (!existeRuta(origen, destino)) {
             Ruta ruta = new Ruta(origen, destino, distancia, tiempo);
             adyacencia.get(origen).add(ruta);
