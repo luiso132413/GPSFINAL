@@ -1,4 +1,5 @@
 package simuladorgps;
+
 import java.io.Serializable;
 import java.util.*;
 import java.util.Objects;
@@ -17,22 +18,24 @@ public class Grafo implements Serializable {
     }
 
     public boolean existeRuta(Ciudad origen, Ciudad destino) {
-        Objects.requireNonNull(origen, "La ciudad origen no puede ser null");
-        Objects.requireNonNull(destino, "La ciudad destino no puede ser null");
-
-        return adyacencia.getOrDefault(origen, Collections.emptyList())
-                .stream()
-                .anyMatch(ruta -> ruta.getDestino().equals(destino));
+        validarCiudades(origen, destino);
+        return !ejecutarDijkstra(origen, destino, (r, h, m) -> r.getDistancia()).isEmpty();
     }
 
     public void conectarCiudad(Ciudad origen, Ciudad destino) {
         validarConexion(origen, destino);
 
-        if (!existeRuta(origen, destino)) {
+        if (!existeRutaDirecta(origen, destino)) {
             double distancia = Funciones.recorrido(origen.getLatitud(), origen.getLongitud(),
                     destino.getLatitud(), destino.getLongitud());
             adyacencia.get(origen).add(new Ruta(origen, destino, distancia, distancia / 60));
         }
+    }
+
+    private boolean existeRutaDirecta(Ciudad origen, Ciudad destino) {
+        return adyacencia.getOrDefault(origen, Collections.emptyList())
+                .stream()
+                .anyMatch(ruta -> ruta.getDestino().equals(destino));
     }
 
     public void conectarRuta(List<Ciudad> ruta) {
@@ -108,6 +111,7 @@ public class Grafo implements Serializable {
         Map<Ciudad, Ciudad> anteriores = new HashMap<>();
         PriorityQueue<Ciudad> cola = new PriorityQueue<>(Comparator.comparingDouble(distancias::get));
 
+        // Inicialización
         adyacencia.keySet().forEach(ciudad -> distancias.put(ciudad, Double.MAX_VALUE));
         distancias.put(inicio, 0.0);
         cola.add(inicio);
@@ -132,23 +136,22 @@ public class Grafo implements Serializable {
         return reconstruirCamino(destino, anteriores);
     }
 
-    public void agregarRutaDirecta(Ciudad origen, Ciudad destino, double distancia, double tiempo) {
-        validarConexion(origen, destino);
-
-        if (!existeRuta(origen, destino)) {
-            Ruta ruta = new Ruta(origen, destino, distancia, tiempo);
-            adyacencia.get(origen).add(ruta);
-        }
-    }
-
     private List<Ciudad> reconstruirCamino(Ciudad destino, Map<Ciudad, Ciudad> anteriores) {
         List<Ciudad> camino = new ArrayList<>();
+
+        // Si no hay camino al destino
+        if (!anteriores.containsKey(destino)) {
+            return Collections.emptyList();
+        }
+
+        // Reconstruir el camino desde el destino hasta el inicio
         for (Ciudad at = destino; at != null; at = anteriores.get(at)) {
             camino.add(at);
         }
+
+        // Invertir para tener inicio -> destino
         Collections.reverse(camino);
-        return camino.isEmpty() || !camino.get(0).equals(anteriores.get(destino)) ?
-                Collections.emptyList() : camino;
+        return camino;
     }
 
     private String construirReporteRuta(Ciudad inicio, Ciudad destino,
@@ -159,35 +162,79 @@ public class Grafo implements Serializable {
                 .append(String.format("Hora de salida: %02d:%02d%n", hora, minuto))
                 .append("\nDetalle del recorrido:\n");
 
-        final int[] horaActual = {hora}; // Usando array final para atomicidad
-        final int[] minutoActual = {minuto};
+        int horaActual = hora;
+        int minutoActual = minuto;
+        double distanciaTotal = 0.0;
+        int tiempoTotalMinutos = 0;
+        Map<String, Double> velocidadesPorTramo = new LinkedHashMap<>();
 
         for (int i = 0; i < camino.size() - 1; i++) {
             Ciudad actual = camino.get(i);
             Ciudad siguiente = camino.get(i + 1);
 
-            adyacencia.get(actual).stream()
-                    .filter(r -> r.getDestino().equals(siguiente))
-                    .findFirst()
-                    .ifPresent(ruta -> {
-                        double tiempoTramo = Funciones.calcularTiempo(ruta.getDistancia(), horaActual[0], minutoActual[0]);
+            for (Ruta ruta : adyacencia.get(actual)) {
+                if (ruta.getDestino().equals(siguiente)) {
+                    // Tiempo y velocidad para este tramo, según la hora actual
+                    double velocidad = Funciones.velocidadPorHora(horaActual, minutoActual);
+                    double tiempoTramoMin = Funciones.calcularTiempo(ruta.getDistancia(), horaActual, minutoActual);
+                    int minutosTramo = (int) Math.round(tiempoTramoMin);
+                    double velocidadTramo = ruta.getDistancia() / (tiempoTramoMin / 60.0);
 
-                        sb.append(String.format("%s → %s%n", actual.getNombre(), siguiente.getNombre()))
-                                .append(String.format("  Distancia: %.2f km%n", ruta.getDistancia()))
-                                .append(String.format("  Tiempo: %.2f min%n", tiempoTramo))
-                                .append(String.format("  Salida: %02d:%02d%n", horaActual[0], minutoActual[0]));
+                    velocidadesPorTramo.put(
+                            actual.getNombre() + " → " + siguiente.getNombre(),
+                            velocidadTramo
+                    );
 
-                        // Actualizar hora de llegada (versión atómica)
-                        int horas = (int)(tiempoTramo / 60);
-                        int minutos = (int)(tiempoTramo % 60);
-                        horaActual[0] = (horaActual[0] + horas + (minutoActual[0] + minutos) / 60) % 24;
-                        minutoActual[0] = (minutoActual[0] + minutos) % 60;
+                    tiempoTotalMinutos += minutosTramo;
+                    distanciaTotal += ruta.getDistancia();
 
-                        sb.append(String.format("  Llegada: %02d:%02d%n%n", horaActual[0], minutoActual[0]));
-                    });
+                    sb.append(String.format("%s → %s%n", actual.getNombre(), siguiente.getNombre()))
+                            .append(String.format("  Distancia: %.2f km%n", ruta.getDistancia()))
+                            .append(String.format("  Tiempo estimado: %d min%n", minutosTramo))
+                            .append(String.format("  Velocidad media: %.1f km/h%n", velocidadTramo))
+                            .append(String.format("  Salida: %02d:%02d%n", horaActual, minutoActual));
+
+                    // Actualizar hora de llegada
+                    minutoActual += minutosTramo;
+                    horaActual += minutoActual / 60;
+                    minutoActual %= 60;
+                    horaActual %= 24;
+
+                    sb.append(String.format("  Llegada estimada: %02d:%02d%n%n", horaActual, minutoActual));
+                    break;
+                }
+            }
         }
 
+        // Velocidad media global
+        double velocidadMediaGlobal = (tiempoTotalMinutos > 0)
+                ? (distanciaTotal / (tiempoTotalMinutos / 60.0))
+                : 0.0;
+
+        // Hora final
+        int horaLlegada = hora;
+        int minutoLlegada = minuto + tiempoTotalMinutos;
+        horaLlegada += minutoLlegada / 60;
+        minutoLlegada %= 60;
+        horaLlegada %= 24;
+
+        sb.append("--- RESUMEN DEL VIAJE ---\n")
+                .append(String.format("Distancia total: %.2f km%n", distanciaTotal))
+                .append(String.format("Tiempo total: %d min%n", tiempoTotalMinutos))
+                .append(String.format("Hora estimada de llegada: %02d:%02d%n", horaLlegada, minutoLlegada))
+                .append(String.format("Velocidad media global: %.1f km/h%n", velocidadMediaGlobal));
+
         return sb.toString();
+    }
+
+
+    public void agregarRutaDirecta(Ciudad origen, Ciudad destino, double distancia, double tiempo) {
+        validarConexion(origen, destino);
+
+        if (!existeRutaDirecta(origen, destino)) {
+            Ruta ruta = new Ruta(origen, destino, distancia, tiempo);
+            adyacencia.get(origen).add(ruta);
+        }
     }
 
     @FunctionalInterface
