@@ -1,4 +1,4 @@
-package simuladorgps;
+package simuladorgps.Modelo;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;

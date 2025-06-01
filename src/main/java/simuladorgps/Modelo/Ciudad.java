@@ -1,4 +1,4 @@
-package simuladorgps;
+package simuladorgps.Modelo;
 
 import java.io.Serializable;
 

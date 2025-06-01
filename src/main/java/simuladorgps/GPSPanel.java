@@ -1,5 +1,7 @@
 package simuladorgps;
 
+import simuladorgps.Modelo.*;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;

@@ -1,4 +1,5 @@
-package simuladorgps;
+package simuladorgps.Modelo;
+
 import java.io.Serializable;
 
 public class Ruta implements Serializable {

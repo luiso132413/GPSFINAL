@@ -1,4 +1,4 @@
-package simuladorgps;
+package simuladorgps.Modelo;
 
 public class Funciones {
 

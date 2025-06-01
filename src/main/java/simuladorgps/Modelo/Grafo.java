@@ -1,9 +1,8 @@
-package simuladorgps;
+package simuladorgps.Modelo;
 
 import java.io.Serializable;
 import java.util.*;
 import java.util.Objects;
-import javax.swing.*;
 
 public class Grafo implements Serializable {
     private static final long serialVersionUID = 1L;
