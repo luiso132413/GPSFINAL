@@ -4,6 +4,7 @@ import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.io.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class Archivo {
 
@@ -21,23 +22,28 @@ public class Archivo {
             }
 
             try (PrintWriter writer = new PrintWriter(fileToSave)) {
-                // Escribir ciudades
+
+                List<Ciudad> ciudadesOrdenadas = grafo.getCiudades().stream()
+                        .sorted(Comparator.comparingInt(Ciudad::getId))
+                        .collect(Collectors.toList());
+
                 writer.println("=== CIUDADES ===");
-                for (Ciudad ciudad : grafo.getCiudades()) {
+                for (Ciudad ciudad : ciudadesOrdenadas) {
                     writer.println(ciudad.toString());
                 }
 
-                // Escribir conexiones
                 writer.println("\n=== RUTAS ===");
-                for (Ciudad ciudad : grafo.getCiudades()) {
-                    for (Ruta ruta : grafo.getRutasDesde(ciudad)) {
-                        writer.println(String.format("%d -> %d (Distancia: %.2f km, Tiempo: %.2f min)",
-                                ruta.getOrigen().getId(),
-                                ruta.getDestino().getId(),
-                                ruta.getDistancia(),
-                                ruta.getTiempo()));
-                    }
-                }
+                ciudadesOrdenadas.forEach(origen -> {
+                    grafo.getRutasDesde(origen).stream()
+                            .sorted(Comparator.comparingInt(r -> r.getDestino().getId()))
+                            .forEach(ruta -> writer.println(
+                                    String.format("%d -> %d (Distancia: %.2f km, Tiempo: %.2f min)",
+                                            ruta.getOrigen().getId(),
+                                            ruta.getDestino().getId(),
+                                            ruta.getDistancia(),
+                                            ruta.getTiempo())
+                            ));
+                });
 
                 JOptionPane.showMessageDialog(null, "Datos guardados correctamente en:\n" + fileToSave.getAbsolutePath());
             } catch (IOException ex) {
@@ -111,15 +117,15 @@ public class Archivo {
             double latitud = Double.parseDouble(datos[1].replace("Lat: ", ""));
             double longitud = Double.parseDouble(datos[2].replace("Long: ", ""));
 
-            Ciudad ciudad = new Ciudad(id, nombre, latitud, longitud);
-
-            if (datos.length > 3) {
-                int x = Integer.parseInt(datos[3].replace("X: ", ""));
-                int y = Integer.parseInt(datos[4].replace("Y: ", ""));
-                ciudad.setXVisual(x);
-                ciudad.setYVisual(y);
+            int x = 0, y = 0;
+            if (datos.length >= 5) {
+                x = Integer.parseInt(datos[3].replace("X: ", ""));
+                y = Integer.parseInt(datos[4].replace("Y: ", ""));
             }
 
+            Ciudad ciudad = new Ciudad(id, nombre, latitud, longitud);
+            ciudad.setXVisual(x);
+            ciudad.setYVisual(y);
             return ciudad;
         } catch (Exception e) {
             System.err.println("Error al parsear ciudad: " + linea);

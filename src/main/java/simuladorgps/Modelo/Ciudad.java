@@ -65,7 +65,7 @@ public class Ciudad implements Serializable {
 
     @Override
     public String toString() {
-        return String.format("%s (ID: %d, Lat: %.6f, Long: %.6f, X: %d, Y: %d, Accidente: %b)",
-                nombre, id, latitud, longitud, xVisual, yVisual, accidente);
+        return String.format("%s (ID: %d, Lat: %.6f, Long: %.6f, X: %d, Y: %d)",
+                nombre, id, latitud, longitud, xVisual, yVisual);
     }
 }
