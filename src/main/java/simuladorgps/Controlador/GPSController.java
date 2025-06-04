@@ -44,7 +44,6 @@ public class GPSController {
             int x = ciudad.getXVisual();
             int y = ciudad.getYVisual();
 
-            // Sombra
             g2d.setColor(new Color(100, 100, 100, 50));
             g2d.fillOval(x - 9, y - 6, 20, 20);
 
@@ -63,7 +62,6 @@ public class GPSController {
             g2d.setColor(Color.BLACK);
             g2d.drawOval(x - 10, y - 10, 20, 20);
 
-            // Texto
             g2d.setFont(new Font("Arial", Font.BOLD, 12));
             g2d.drawString(ciudad.getNombre(), x + 15, y + 5);
             g2d.setFont(new Font("Arial", Font.PLAIN, 10));
@@ -122,7 +120,7 @@ public class GPSController {
         }
     }
 
-    // Métodos de manejo de eventos
+    // Metodos de manejo de eventos
     public void handleMousePress(MouseEvent e) {
         if (SwingUtilities.isRightMouseButton(e)) {
             mostrarDialogoNuevaCiudad(e.getX(), e.getY());
@@ -201,7 +199,7 @@ public class GPSController {
         }
     }
 
-    // Métodos de acciones
+    // Metodos de acciones
     public void calcularRutaOptima() {
         if (ciudadSeleccionada == null) {
             JOptionPane.showMessageDialog(mapPanel,
@@ -324,7 +322,7 @@ public class GPSController {
         infoPanel.agregarMensaje("Haz clic en una ciudad para marcarla como con accidente.");
     }
 
-    // Métodos auxiliares
+    // Metodos auxiliares
     private Ciudad obtenerCiudadCercana(int x, int y) {
         final int RADIO_DETECCION = 20;
 

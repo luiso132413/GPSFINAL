@@ -10,8 +10,6 @@ public class Ciudad implements Serializable {
     private double latitud;
     private double longitud;
     private boolean accidente = false;
-
-    // Coordenadas visuales
     private int xVisual;
     private int yVisual;
 
@@ -54,7 +52,6 @@ public class Ciudad implements Serializable {
         this.yVisual = yVisual;
     }
 
-    // Nuevo: getter y setter de accidente
     public boolean tieneAccidente() {
         return accidente;
     }

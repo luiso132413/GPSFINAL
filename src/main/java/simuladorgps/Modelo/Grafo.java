@@ -37,16 +37,6 @@ public class Grafo implements Serializable {
                 .anyMatch(ruta -> ruta.getDestino().equals(destino));
     }
 
-    public void conectarRuta(List<Ciudad> ruta) {
-        Objects.requireNonNull(ruta, "La lista de ciudades no puede ser null");
-        if (ruta.size() < 2) {
-            throw new IllegalArgumentException("Se necesitan al menos 2 ciudades para formar una ruta");
-        }
-
-        for (int i = 0; i < ruta.size() - 1; i++) {
-            conectarCiudad(ruta.get(i), ruta.get(i + 1));
-        }
-    }
 
     // Métodos de consulta
     public List<Ciudad> getCiudades() {
@@ -58,10 +48,6 @@ public class Grafo implements Serializable {
     }
 
     // Algoritmos de ruta
-    public List<Ciudad> rutaMasRapida(Ciudad origen, Ciudad destino, double velocidad) {
-        validarCiudades(origen, destino);
-        return ejecutarDijkstra(origen, destino, (r, h, m) -> r.getDistancia() / velocidad * 60);
-    }
 
     public String dijkstra(Ciudad inicio, Ciudad destino, int hora, int minuto) {
         validarCiudades(inicio, destino);
@@ -110,7 +96,6 @@ public class Grafo implements Serializable {
         Map<Ciudad, Ciudad> anteriores = new HashMap<>();
         PriorityQueue<Ciudad> cola = new PriorityQueue<>(Comparator.comparingDouble(distancias::get));
 
-        // Inicialización
         adyacencia.keySet().forEach(ciudad -> distancias.put(ciudad, Double.MAX_VALUE));
         distancias.put(inicio, 0.0);
         cola.add(inicio);
@@ -119,7 +104,7 @@ public class Grafo implements Serializable {
             Ciudad actual = cola.poll();
             if (actual.equals(destino)) break;
 
-            // Si la ciudad actual tiene accidente, ignoramos sus rutas (no expandimos desde aquí)
+            // Si la ciudad actual tiene accidente, ignoramos sus rutas
             if (actual.tieneAccidente()) {
                 continue;
             }
@@ -127,7 +112,6 @@ public class Grafo implements Serializable {
             for (Ruta ruta : adyacencia.get(actual)) {
                 Ciudad vecino = ruta.getDestino();
 
-                // Ignorar rutas hacia ciudades con accidente
                 if (vecino.tieneAccidente()) {
                     continue;
                 }
@@ -159,7 +143,6 @@ public class Grafo implements Serializable {
             camino.add(at);
         }
 
-        // Invertir para tener inicio -> destino
         Collections.reverse(camino);
         return camino;
     }
@@ -184,7 +167,6 @@ public class Grafo implements Serializable {
 
             for (Ruta ruta : adyacencia.get(actual)) {
                 if (ruta.getDestino().equals(siguiente)) {
-                    // Tiempo y velocidad para este tramo, según la hora actual
                     double velocidad = Funciones.velocidadPorHora(horaActual, minutoActual);
                     double tiempoTramoMin = Funciones.calcularTiempo(ruta.getDistancia(), horaActual, minutoActual);
                     int minutosTramo = (int) Math.round(tiempoTramoMin);
@@ -204,7 +186,6 @@ public class Grafo implements Serializable {
                             .append(String.format("  Velocidad media: %.1f km/h%n", velocidadTramo))
                             .append(String.format("  Salida: %02d:%02d%n", horaActual, minutoActual));
 
-                    // Actualizar hora de llegada
                     minutoActual += minutosTramo;
                     horaActual += minutoActual / 60;
                     minutoActual %= 60;
@@ -216,12 +197,11 @@ public class Grafo implements Serializable {
             }
         }
 
-        // Velocidad media global
+        // Velocidad media Total
         double velocidadMediaGlobal = (tiempoTotalMinutos > 0)
                 ? (distanciaTotal / (tiempoTotalMinutos / 60.0))
                 : 0.0;
 
-        // Hora final
         int horaLlegada = hora;
         int minutoLlegada = minuto + tiempoTotalMinutos;
         horaLlegada += minutoLlegada / 60;
@@ -232,7 +212,7 @@ public class Grafo implements Serializable {
                 .append(String.format("Distancia total: %.2f km%n", distanciaTotal))
                 .append(String.format("Tiempo total: %d min%n", tiempoTotalMinutos))
                 .append(String.format("Hora estimada de llegada: %02d:%02d%n", horaLlegada, minutoLlegada))
-                .append(String.format("Velocidad media global: %.1f km/h%n", velocidadMediaGlobal));
+                .append(String.format("Velocidad media Total: %.1f km/h%n", velocidadMediaGlobal));
 
         return sb.toString();
     }

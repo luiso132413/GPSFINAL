@@ -7,7 +7,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class Archivo {
-
+    //Metodo para guardar los datos en un formato en especifico
     public static void guardarDatos(Grafo grafo) {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setDialogTitle("Guardar datos del grafo");
@@ -52,6 +52,7 @@ public class Archivo {
         }
     }
 
+    // Metodos para cargar los datos del grafo
     public static Grafo cargarDatos() {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setDialogTitle("Cargar datos del grafo");
@@ -168,15 +169,15 @@ public class Archivo {
 
     private static void distribuirCiudadesVisualmente(Grafo grafo) {
         List<Ciudad> ciudades = grafo.getCiudades();
-        int centerX = 400; // Centro X del panel
-        int centerY = 300; // Centro Y del panel
-        int radius = Math.min(centerX, centerY) - 50; // Radio del círculo
+        int centerX = 400;
+        int centerY = 300;
+        int radius = Math.min(centerX, centerY) - 50;
 
         double angleStep = 2 * Math.PI / ciudades.size();
         double currentAngle = 0;
 
         for (Ciudad ciudad : ciudades) {
-            // Si la ciudad ya tiene coordenadas visuales, no las cambiamos
+
             if (ciudad.getXVisual() == 0 && ciudad.getYVisual() == 0) {
                 int x = (int)(centerX + radius * Math.cos(currentAngle));
                 int y = (int)(centerY + radius * Math.sin(currentAngle));

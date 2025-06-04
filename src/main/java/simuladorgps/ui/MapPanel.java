@@ -11,13 +11,14 @@ import java.awt.event.MouseMotionAdapter;
 public class MapPanel extends JPanel {
     private GPSController controller;
 
+    // Constructor del panel, aquí se recibe el controlador para manejar todo
     public MapPanel(GPSController controller) {
         this.controller = controller;
         setBackground(new Color(240, 240, 240));
-        setupMouseListeners();
+        setupMouseListeners(); // Configuramos los eventos del mouse
     }
 
-    private void setupMouseListeners() {
+      private void setupMouseListeners() {
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
@@ -38,9 +39,10 @@ public class MapPanel extends JPanel {
         });
     }
 
+    // Este metodo pinta todo en el panel
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        controller.dibujarTodo(g, getWidth(), getHeight());
+        controller.dibujarTodo(g, getWidth(), getHeight()); // Le decimos al controlador que pinte todo
     }
 }
